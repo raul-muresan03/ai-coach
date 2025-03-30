@@ -5,7 +5,7 @@ import { Button } from "./button"
 export const HeroSection = () => {
     return (
         <div>
-            <div className="h-screen flex items-center justify-center bg-red-100 ">
+            <div className="h-screen flex items-center justify-center">
 
                 <div className="flex flex-col items-center space-y-10">
                     <div className="font-bold text-6xl">
