@@ -11,17 +11,6 @@ export const Header = () => {
                     Appname
                 </div>
             </div>
-            <div className="space-x-2 flex items-center">
-                <Button size="lg">
-                    Theme
-                </Button>
-                <Button size="lg">
-                    Sign in
-                </Button>
-                <Button size="lg">
-                    Log in
-                </Button>
-            </div>
         </div>
     )
 }
