@@ -1,0 +1,10 @@
+*.dll
+OpenCV/dll/
+
+.vs/
+x64/
+Debug/
+Release/
+
+
+Images/
