@@ -187,7 +187,7 @@ int main()
 {
 	utils::logging::setLogLevel(utils::logging::LOG_LEVEL_FATAL);		//ca sa curatam consola
 
-	Mat_<Vec3b> img_originala = imread("Images/train/35.8.png");
+	Mat_<Vec3b> img_originala = imread("Images/train/35.8.png");		//35.8
 	Mat_<Vec3b> img(img_originala.rows, img_originala.cols);
 	double scale = 600.0 / img_originala.rows;
 	resize(img_originala, img, Size(), scale, scale);			//resize ca sa avem o fereastra mai mica, pastrand ratio-ul
@@ -215,45 +215,31 @@ int main()
 	inRange(imagine_ycrcb, ycrcb_low, ycrcb_high, mask_ycrcb);
 	//imshow("mascaYCrCb", mask_ycrcb);
 
-	Mat_<uchar> mask_skin = mask_hsv & mask_ycrcb;
-	imshow("combined mask", mask_skin);
-
-
-	//Mat_<Vec3b> mask_color;
-	//cvtColor(mask_skin, mask_color, 8, 0);
-	//Mat_<Vec3b> skin_only = img & mask_color;
-
-	//imshow("skin only", skin_only);
-
-	//afisam un layer cu pixeli rosii peste imagine, doar acolo unde s-a detectat pielea
-	//Mat_<Vec3b> highlight(img.size());
-	//for (int i = 0; i < img.rows; i++)
-	//{
-	//	for (int j = 0; j < img.cols; j++)
-	//	{
-	//		highlight(i, j)[0] = 0;
-	//		highlight(i, j)[1] = 0;
-	//		highlight(i, j)[2] = mask_skin(i, j);
-	//	}
-	//}
-	//Mat_<Vec3b> result(img.size());
-	//addWeighted(img, 0.4, highlight, 0.6, 0, result);			//suprapunerea imaginilor
-	//imshow("highlighted skin", result);
-
-
+	Mat_<uchar> hsv_and_ycrcb = mask_hsv | mask_ycrcb;
+	//imshow("combined mask", hsv_and_ycrcb);
+	//
+	Mat_<uchar> impuritati = mask_hsv & ~mask_ycrcb;
+	Mat_<uchar> mask_v2 = hsv_and_ycrcb & ~impuritati;
+	//imshow("Mask V2", hsv_and_ycrcb);
 
 	//dilatare + evoziune--------------------------/////
+	Mat_<uchar> elem_structurant(5, 5);
+	elem_structurant.setTo(0);
+	mask_v2 = dilatare(mask_v2, elem_structurant);
+	mask_v2 = evoziune(mask_v2, elem_structurant);
 
-	//Mat_<uchar> elem_structurant(5, 5);
-	//elem_structurant.setTo(0);
-	//mask_skin = dilatare(mask_skin, elem_structurant);
-	//mask_skin = evoziune(mask_skin, elem_structurant);
+	imshow("dilatare + evoziune", mask_v2);
 
-	Mat_<uchar> kernel = getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
-	morphologyEx(mask_skin, mask_skin, MORPH_OPEN, kernel);
-	morphologyEx(mask_skin, mask_skin, MORPH_CLOSE, kernel);
+	mask_v2 = dilatare(mask_v2, elem_structurant);
+	mask_v2 = evoziune(mask_v2, elem_structurant);
+	imshow("dilatare + evoziune 2", mask_v2);
 
-	imshow("Cleaned Mask", mask_skin);
+	//alta metoda pt dilatare+evoziune - cica mai eficienta, dar nu pare
+	//Mat_<uchar> mask_v3 = mask_v2.clone();
+	//Mat_<uchar> kernel = getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
+	//morphologyEx(mask_v3, mask_v3, MORPH_OPEN, kernel);
+	//morphologyEx(mask_v3, mask_v3, MORPH_CLOSE, kernel);
+	//imshow("Dupa morfologie V2", mask_v3);
 
 
 
