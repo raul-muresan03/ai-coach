@@ -11,18 +11,8 @@
 using namespace std;
 //using namespace cv;
 
-Mat_<uchar> color_to_grayscale(Mat_<Vec3b> img) {
-	Mat_<uchar> img1(img.rows, img.cols);
-
-	for (int i = 0; i < img.rows;i++)
-	{
-		for (int j = 0; j < img.cols; j++)
-		{
-			img1(i, j) = (img(i, j)[0] + img(i, j)[1] + img(i, j)[2]) / 3;
-		}
-	}
-
-	return img1;
+int isInside(Mat img, int i, int j) {
+	return i >= 0 && i < img.rows && j >= 0 && j < img.cols;
 }
 
 float max3(float a, float b, float c) {
@@ -113,8 +103,13 @@ Mat_<Vec3b> HSV_to_RGB(Mat_<Vec3b> img) {
 	return rgb;
 }
 
-int isInside(Mat img, int i, int j) {
-	return i >= 0 && i < img.rows && j >= 0 && j < img.cols;
+Mat_<Vec3b> RGB_to_YCrCb(Mat_<Vec3b> img)
+{
+	Mat_<Vec3b> ycrcb(img.rows, img.cols);
+
+	cvtColor(img, ycrcb, 36, 0);
+
+	return ycrcb;
 }
 
 Mat_<uchar> dilatare(Mat_<uchar> src, Mat_<uchar> str_el)
@@ -191,6 +186,75 @@ Mat_<uchar> evoziune(Mat_<uchar> src, Mat_<uchar> str_el)
 int main()
 {
 	utils::logging::setLogLevel(utils::logging::LOG_LEVEL_FATAL);		//ca sa curatam consola
+
+	Mat_<Vec3b> img_originala = imread("Images/train/35.8.png");
+	Mat_<Vec3b> img(img_originala.rows, img_originala.cols);
+	double scale = 600.0 / img_originala.rows;
+	resize(img_originala, img, Size(), scale, scale);			//resize ca sa avem o fereastra mai mica, pastrand ratio-ul
+
+	//bgr in hsv si ycrcb pentru detectia pielii
+	Mat_<Vec3b> imagine_HSV = RGB_to_HSV(img);
+	Mat_<Vec3b> imagine_ycrcb = RGB_to_YCrCb(img);
+
+	//imshow("imagine", img);
+	//imshow("imagine_hsv", imagine_HSV);
+	//imshow("imagine_ycrcb", imagine_ycrcb);
+
+	//-----------------------------------////
+	//generam mastile pentru cele doua spatii de culoare si apoi le combinam
+
+	Mat_<uchar> mask_hsv;
+	Scalar hsv_low(0, 60, 50);
+	Scalar hsv_high(20, 255, 255);
+	inRange(imagine_HSV, hsv_low, hsv_high, mask_hsv);
+	//imshow("mascaHSV", mask_hsv);
+
+	Mat_<uchar> mask_ycrcb;
+	Scalar ycrcb_low(0, 135, 85);
+	Scalar ycrcb_high(255, 180, 135);
+	inRange(imagine_ycrcb, ycrcb_low, ycrcb_high, mask_ycrcb);
+	//imshow("mascaYCrCb", mask_ycrcb);
+
+	Mat_<uchar> mask_skin = mask_hsv & mask_ycrcb;
+	imshow("combined mask", mask_skin);
+
+
+	//Mat_<Vec3b> mask_color;
+	//cvtColor(mask_skin, mask_color, 8, 0);
+	//Mat_<Vec3b> skin_only = img & mask_color;
+
+	//imshow("skin only", skin_only);
+
+	//afisam un layer cu pixeli rosii peste imagine, doar acolo unde s-a detectat pielea
+	//Mat_<Vec3b> highlight(img.size());
+	//for (int i = 0; i < img.rows; i++)
+	//{
+	//	for (int j = 0; j < img.cols; j++)
+	//	{
+	//		highlight(i, j)[0] = 0;
+	//		highlight(i, j)[1] = 0;
+	//		highlight(i, j)[2] = mask_skin(i, j);
+	//	}
+	//}
+	//Mat_<Vec3b> result(img.size());
+	//addWeighted(img, 0.4, highlight, 0.6, 0, result);			//suprapunerea imaginilor
+	//imshow("highlighted skin", result);
+
+
+
+	//dilatare + evoziune--------------------------/////
+
+	//Mat_<uchar> elem_structurant(5, 5);
+	//elem_structurant.setTo(0);
+	//mask_skin = dilatare(mask_skin, elem_structurant);
+	//mask_skin = evoziune(mask_skin, elem_structurant);
+
+	Mat_<uchar> kernel = getStructuringElement(MORPH_ELLIPSE, Size(5, 5));
+	morphologyEx(mask_skin, mask_skin, MORPH_OPEN, kernel);
+	morphologyEx(mask_skin, mask_skin, MORPH_CLOSE, kernel);
+
+	imshow("Cleaned Mask", mask_skin);
+
 
 
 	waitKey();
