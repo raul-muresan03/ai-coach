@@ -112,70 +112,52 @@ Mat_<Vec3b> RGB_to_YCrCb(Mat_<Vec3b> img)
 	return ycrcb;
 }
 
-Mat_<uchar> dilatare(Mat_<uchar> src, Mat_<uchar> str_el)
+Mat_<uchar> eroziune(Mat_<uchar> src, Mat_<uchar> str_el)
 {
 	Mat_<uchar> dst(src.size());
 	dst.setTo(255);
-
-	for (int i = 0; i < src.rows;i++)
-	{
-		for (int j = 0; j < src.cols; j++)
-		{
+	for (int i = 0;i < src.rows;i++)
+		for (int j = 0;j < src.cols;j++)
 			if (src(i, j) == 0)
 			{
-				for (int u = 0; u < str_el.rows; u++)
-				{
-					for (int v = 0; v < str_el.cols; v++)
-					{
+				for (int u = 0;u < str_el.rows;u++)
+					for (int v = 0;v < str_el.cols;v++)
 						if (str_el(u, v) == 0)
 						{
 							int i2 = i + u - str_el.rows / 2;
 							int j2 = j + v - str_el.cols / 2;
-
 							if (isInside(dst, i2, j2))
 							{
+								if (src(i2, j2) == 255)
+									goto afara;
+
+							}
+						}
+
+				dst(i, j) = 0;
+			afara:
+				if (0);
+			}
+	return dst;
+}
+
+Mat_<uchar> dilatare(Mat_<uchar> src, Mat_<uchar> str_el) {
+	Mat_<uchar> dst(src.size());
+	dst.setTo(255);
+
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src(i, j) == 0) {
+				for (int u = 0; u < str_el.rows; u++) {
+					for (int v = 0; v < str_el.cols; v++) {
+						if (str_el(u, v) == 0) {
+							int i2 = i + u - str_el.rows / 2;
+							int j2 = j + v - str_el.cols / 2;
+							if (isInside(dst, i2, j2)) {
 								dst(i2, j2) = 0;
 							}
 						}
 					}
-				}
-			}
-		}
-	}
-	return dst;
-}
-
-Mat_<uchar> evoziune(Mat_<uchar> src, Mat_<uchar> str_el)
-{
-	Mat_<uchar> dst(src.size());
-	dst.setTo(255);
-	for (int i = 0; i < src.rows;i++)
-	{
-		for (int j = 0; j < src.cols; j++)
-		{
-			int ok = 1;
-			if (src(i, j) == 0)
-			{
-				for (int u = 0; u < str_el.rows && ok; u++)
-				{
-					for (int v = 0; v < str_el.cols && ok; v++)
-					{
-						if (str_el(u, v) == 0)
-						{
-							int i2 = i + u - str_el.rows / 2;
-							int j2 = j + v - str_el.cols / 2;
-
-							if (!isInside(dst, i2, j2) || src(i2, j2) != 0)
-							{
-								ok = 0;
-							}
-						}
-					}
-				}
-
-				if (ok)
-				{
-					dst(i, j) = 0;
 				}
 			}
 		}
@@ -197,7 +179,7 @@ Mat_<int> etichetare_v2(Mat_<uchar> img)
 	{
 		for (int j = 0; j < labels.cols; j++)
 		{
-			if (img(i, j) == 0 && labels(i, j) == 0)
+			if (img(i, j) == 255 && labels(i, j) == 0)
 			{
 				vector<int> L;
 				for (int k = 0; k < 4; k++)
@@ -287,28 +269,49 @@ Mat_<Vec3b> colorare(Mat_<int> img)
 		}
 	}
 
-	default_random_engine gen;
-	uniform_int_distribution<int> d(0, 255);
-	vector<Vec3b> v;
-
-	int label = 0;
-
-	for (int k = 0; k < maxim + 1; k++)
-	{
-		uchar b = d(gen);
-		uchar g = d(gen);
-		uchar r = d(gen);
-
-		v.push_back({ b, g, r });
-	}
-
-	v[0] = { 255, 255, 255 };
-	for (int i = 0; i < img.rows;i++)
+	vector<int> labels_count(maxim + 1, 0);
+	for (int i = 0; i < img.rows; i++)
 	{
 		for (int j = 0; j < img.cols; j++)
 		{
-			label = img(i, j);
-			img2(i, j) = v[label];
+			labels_count[img(i, j)]++;
+		}
+	}
+
+	int first_max = -1, second_max = -1;
+	int first_idx = -1, second_idx = -1;
+
+	for (int i = 0; i <= maxim; i++)
+	{
+		if (labels_count[i] > first_max)
+		{
+			second_max = first_max;
+			second_idx = first_idx;
+			first_max = labels_count[i];
+			first_idx = i;
+		}
+		else if (labels_count[i] > second_max)
+		{
+			second_max = labels_count[i];
+			second_idx = i;
+		}
+	}
+
+	int skin_label = second_idx;
+
+	cout << "background: " << first_idx << ", piele: " << skin_label << endl;
+
+	for (int i = 0; i < img.rows; i++)
+	{
+		for (int j = 0; j < img.cols; j++)
+		{
+			if (img(i, j) == skin_label)
+			{
+				img2(i, j) = Vec3b(0, 0, 0);			//skin
+			}
+			else {
+				img2(i, j) = Vec3b(255, 255, 255);		//restul
+			}
 		}
 	}
 
@@ -362,39 +365,34 @@ int main()
 	inRange(imagine_ycrcb, ycrcb_low, ycrcb_high, mask_ycrcb);
 	//imshow("mascaYCrCb", mask_ycrcb);
 
-	Mat_<uchar> hsv_and_ycrcb = mask_hsv | mask_ycrcb;
-	//imshow("combined mask", hsv_and_ycrcb);
-	////
-	Mat_<uchar> impuritati = mask_hsv & ~mask_ycrcb;
-	Mat_<uchar> mask_v2 = hsv_and_ycrcb & ~impuritati;
-	//imshow("Mask V2", hsv_and_ycrcb);
+	Mat_<uchar> mask_combined = mask_hsv | mask_ycrcb;
+	//imshow("combined mask", mask_combined);
 
-	////dilatare + evoziune--------------------------/////
-	Mat_<uchar> elem_structurant(15, 15);
+	////dilatare + eroziune--------------------------/////
+	Mat_<uchar> elem_structurant(10,10);
 	elem_structurant.setTo(0);
-	mask_v2 = dilatare(mask_v2, elem_structurant);
-	mask_v2 = evoziune(mask_v2, elem_structurant);
+	mask_combined = dilatare(mask_combined, elem_structurant);
+	mask_combined = eroziune(mask_combined, elem_structurant);
 
-	//imshow("imagine dupa dilatare si evoziune", mask_v2);
+	imshow("imagine dupa dilatare si eroziune", mask_combined);
 
-	//binarizare
-	Mat_<uchar> img_binara = binarizare(mask_v2, 125);
-	//imshow("imagine alb negru", img_binara);
-
-	//imshow("dilatare + evoziune", mask_v2);
-
-	/* testare etichetare + colorare
-		//Mat_<uchar> img1 = imread("Images/letters.bmp", 0);
-		//Mat_<int> img4 = etichetare_v2(img1);
-		//Mat_<Vec3b> img5 = colorare(img4);
-		//imshow("etichetare_colorare", img5);
-		//cout << img4;
-	*/
-
-	Mat_<int> labels = etichetare_v2(img_binara);
-	Mat_<Vec3b> img_et_col = colorare(labels);
+	////etichetare + colorare-----------------------////
+	Mat_<int> img_etichetata = etichetare_v2(mask_combined);
+	Mat_<Vec3b> img_et_col = colorare(img_etichetata);
 
 	imshow("imagine dupa etichetare si colorare", img_et_col);
+
+
+	//--------------------------------------------///////
+	//Canny
+
+
+	//--------------------------------------------///////
+	//crop + afisare abdomen
+
+
+	//--------------------------------------------///////
+	//calculare bodyfat
 
 	waitKey();
 
